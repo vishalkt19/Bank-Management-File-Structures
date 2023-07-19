@@ -1,0 +1,444 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include<iomanip>
+#include <cctype>
+using namespace std;
+
+const int SIZE = 10;
+
+struct Account {
+    int accountNumber;
+    string customerName;
+    double balance;
+    string accountType;
+    string branch;
+    bool isActive;
+};
+
+class HashTable {
+private:
+    Account table[SIZE];
+
+public:
+    // Constructor to initialize the hash table
+    HashTable() {
+        for (int i = 0; i < SIZE; i++) {
+            table[i].isActive = false;
+        }
+    }
+
+    // Hash function to determine the index for an account number
+    int hash(int accountNumber) {
+        return accountNumber % SIZE;
+    }
+    
+    void createAccount() {
+    Account newAccount;
+    cout << "Enter customer account number: ";
+    string accountNumberInput;
+    cin >> accountNumberInput;
+
+    // Validate if the account number is numeric
+    for (char c : accountNumberInput) {
+        if (!isdigit(c)) {
+            cout << "Invalid account number. Account number should be numeric." << endl;
+            return;
+        }
+    }
+
+    newAccount.accountNumber = stoi(accountNumberInput);
+    cin.ignore();
+
+    if (searchAccount(newAccount.accountNumber)) {
+        cout << "Account number already exists." << endl;
+        return;
+    }
+
+    cout << "Enter customer name: ";
+    getline(cin, newAccount.customerName);
+
+    cout << "Enter initial balance: ";
+    string balanceInput;
+    cin >> balanceInput;
+
+    // Validate if the balance is numeric
+    for (char c : balanceInput) {
+        if (!isdigit(c) && c != '.') {
+            cout << "Invalid balance. Balance should be numeric." << endl;
+            return;
+        }
+    }
+
+    newAccount.balance = stod(balanceInput);
+    cin.ignore();
+
+    cout << "Enter account type (Saving/Current): ";
+    getline(cin, newAccount.accountType);
+
+    cout << "Enter customer branch: ";
+    getline(cin, newAccount.branch);
+
+    int index = hash(newAccount.accountNumber);
+
+    while (table[index].isActive) {
+        index = (index + 1) % SIZE;
+    }
+
+    table[index] = newAccount;
+    table[index].isActive = true;
+
+    cout << "Account created successfully." << endl;
+    storeAccountsToFile();
+}
+
+    // Search for an account based on the customer account number
+    bool searchAccount(int accountNumber) {
+        int index = hash(accountNumber);
+                                                                                           
+        while (table[index].isActive) {
+            if (table[index].accountNumber == accountNumber) {
+                cout << "Account found." << endl;
+                displayAccount(index);
+                return true;
+            }
+
+            index = (index + 1) % SIZE;
+        }
+
+        cout << "Account not found." << endl;
+        return false;
+        // After searching, retrieve the updated hash table from the file
+        retrieveAccountsFromFile();     
+    }
+
+    // Modify account details
+    
+void modifyAccount(int accountNumber) {
+    int index = hash(accountNumber);
+
+    while (table[index].isActive) {
+        if (table[index].accountNumber == accountNumber) {
+            cout << "Enter modified customer name: ";
+            cin.ignore();
+            getline(cin, table[index].customerName);
+
+            cout << "Enter modified balance: ";
+            cin >> table[index].balance;
+            cin.ignore();
+
+            cout << "Enter modified account type (Saving/Current): ";
+            getline(cin, table[index].accountType);
+
+            cout << "Enter modified customer branch: ";
+            getline(cin, table[index].branch);
+
+            cout << "Account details modified successfully." << endl;
+            // After modifying the account, store the updated hash table to the file
+            storeAccountsToFile();
+            return;
+        }
+
+        index = (index + 1) % SIZE;
+    }
+    cout << "Account not found." << endl;
+}
+
+
+    // Perform a transaction between two accounts
+    void performTransaction(int senderAccountNumber, int receiverAccountNumber) {
+        int senderIndex = hash(senderAccountNumber);
+        int receiverIndex = hash(receiverAccountNumber);
+        bool senderFound = false;
+        bool receiverFound = false;
+
+        while (table[senderIndex].isActive) {
+            if (table[senderIndex].accountNumber == senderAccountNumber) {
+                senderFound = true;
+                break;
+            }
+
+            senderIndex = (senderIndex + 1) % SIZE;
+        }
+
+        while (table[receiverIndex].isActive) {
+            if (table[receiverIndex].accountNumber == receiverAccountNumber) {
+                receiverFound = true;
+                break;
+            }
+
+            receiverIndex = (receiverIndex + 1) % SIZE;
+        }
+
+        if (!senderFound) {
+            cout << "Sender account not found." << endl;
+            return;
+        }
+
+        if (!receiverFound) {
+            cout << "Receiver account not found." << endl;
+            return;
+        }
+
+        double amount;
+        cout << "Enter the amount to transfer: ";
+        cin >> amount;
+        cin.ignore();
+
+        if (table[senderIndex].balance < amount) {
+            cout << "Insufficient balance in the sender's account." << endl;
+            return;
+        }
+
+        table[senderIndex].balance -= amount;
+        table[receiverIndex].balance += amount;
+
+        cout << "Transaction completed successfully." << endl;
+        cout << "Sender's account balance: " << table[senderIndex].balance << endl;
+        cout << "Receiver's account balance: " << table[receiverIndex].balance << endl;
+          // After performing the transaction, store the updated hash table to the file
+        storeAccountsToFile();
+    }
+
+    // Perform a withdrawal from an account
+    void performWithdrawal(int accountNumber) {
+        int index = hash(accountNumber);
+
+        while (table[index].isActive) {
+            if (table[index].accountNumber == accountNumber) {
+                double amount;
+                cout << "Enter the amount to withdraw: ";
+                cin >> amount;
+                cin.ignore();
+
+                if (table[index].balance < amount) {
+                    cout << "Insufficient balance in the account." << endl;
+                    return;
+                }
+
+                table[index].balance -= amount;
+
+                cout << "Withdrawal completed successfully." << endl;
+                cout << "Account balance: " << table[index].balance << endl;
+                return;
+            }
+
+            index = (index + 1) % SIZE;
+        }
+
+        cout << "Account not found." << endl;
+          // After performing the transaction, store the updated hash table to the file
+        storeAccountsToFile();
+    }
+
+    // Delete an account based on the customer account number
+    void deleteAccount(int accountNumber) {
+    int index = hash(accountNumber);
+
+    while (table[index].isActive) {
+        if (table[index].accountNumber == accountNumber) {
+            table[index].isActive = false;
+
+            cout << "Account deleted successfully." << endl;
+
+            // After deleting the account, store the updated hash table to the file
+            storeAccountsToFile();
+            return;
+        }
+
+        index = (index + 1) % SIZE;
+    }
+
+    cout << "Account not found." << endl;
+}
+
+    // Display account details
+    void displayAccount(int index) {
+    cout << "-------------------------------------------------------------------------------------------" << endl;
+    cout << "| " << setw(15) << "Account Number";
+    cout << " | " << setw(15) << "Customer Name";
+    cout << " | " << setw(15) << "Balance";
+    cout << " | " << setw(15) << "Account Type";
+    cout << " | " << setw(15) << "Branch";
+    cout << " |" << endl;
+    cout << "-------------------------------------------------------------------------------------------" << endl;
+    cout << "| " << setw(15) << table[index].accountNumber;
+    cout << " | " << setw(15) << table[index].customerName;
+    cout << " | " << setw(15) << table[index].balance;
+    cout << " | " << setw(15) << table[index].accountType;
+    cout << " | " << setw(15) << table[index].branch;
+    cout << " |" << endl;
+   cout << "-------------------------------------------------------------------------------------------" << endl;
+}
+    
+    // Display all customer details
+    void displayAllAccounts() {
+        for (int i = 0; i < SIZE; i++) {
+            if (table[i].isActive) {
+                displayAccount(i);
+            }
+        }
+         // After displaying all accounts, retrieve the updated hash table from the file
+        
+    }
+
+    // Store the hash table into a file
+    void storeAccountsToFile() {
+        ofstream file("accounts.txt");
+
+        if (!file) {
+            cout << "Error creating the file." << endl;
+            return;
+        }
+
+        for (int i = 0; i < SIZE; i++) {
+            if (table[i].isActive) {
+                file << table[i].accountNumber << ",";
+                file << table[i].customerName << ",";
+                file << table[i].balance << ",";
+                file << table[i].accountType << ",";
+                file << table[i].branch << endl;
+            }
+        }
+
+        file.close();
+        cout << "Accounts stored in the file successfully." << endl;
+    }
+
+    // Retrieve the hash table from a file
+    void retrieveAccountsFromFile() {
+    ifstream file("accounts.txt");
+
+    if (!file) {
+        cout << "Error opening the file." << endl;
+        return;
+    }
+
+    for (int i = 0; i < SIZE; i++) {
+        table[i].isActive = false;  // Reset the isActive flag for all accounts
+    }
+
+    string line;
+
+    while (getline(file, line)) {
+        Account newAccount;
+        stringstream ss(line);
+        string token;
+        int count = 0;
+
+        while (getline(ss, token, ',')) {
+            switch (count) {
+                case 0:
+                    newAccount.accountNumber = stoi(token);
+                    break;
+                case 1:
+                    newAccount.customerName = token;
+                    break;
+                case 2:
+                    newAccount.balance = stod(token);
+                    break;
+                case 3:
+                    newAccount.accountType = token;
+                    break;
+                case 4:
+                    newAccount.branch = token;
+                    break;
+            }
+
+            count++;
+        }
+
+        int index = hash(newAccount.accountNumber);
+
+        while (table[index].isActive) {
+            // Handle collisions using linear probing
+            index = (index + 1) % SIZE;
+        }
+
+        table[index] = newAccount;
+        table[index].isActive = true;
+    }
+
+    file.close();
+    cout << "Accounts retrieved from the file successfully." << endl;
+}
+};
+
+int main() {
+    HashTable bank;
+
+    // Retrieve the initial hash table from the file
+    bank.retrieveAccountsFromFile();
+
+    int choice;
+
+    do {
+        cout << "----- Bank Management System -----" << endl;
+        cout << "1. Create Account" << endl;
+        cout << "2. Search Account" << endl;
+        cout << "3. Modify Account" << endl;
+        cout << "4. Perform Transaction" << endl;
+        cout << "5. Perform Withdrawal" << endl;
+        cout << "6. Delete Account" << endl;
+        cout << "7. Display All Accounts" << endl;
+        cout << "0. Exit" << endl;
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                bank.createAccount();
+                break;
+            case 2: {
+                int accountNumber;
+                cout << "Enter account number: ";
+                cin >> accountNumber;
+                bank.searchAccount(accountNumber);
+                break;
+            }
+            case 3: {
+                int accountNumber;
+                cout << "Enter account number: ";
+                cin >> accountNumber;
+                bank.modifyAccount(accountNumber);
+                break;
+            }
+            case 4: {
+                int senderAccountNumber, receiverAccountNumber;
+                cout << "Enter sender account number: ";
+                cin >> senderAccountNumber;
+                cout << "Enter receiver account number: ";
+                cin >> receiverAccountNumber;
+                bank.performTransaction(senderAccountNumber, receiverAccountNumber);
+                break;
+            }
+            case 5: {
+                int accountNumber;
+                cout << "Enter account number: ";
+                cin >> accountNumber;
+                bank.performWithdrawal(accountNumber);
+                break;
+            }
+            case 6: {
+                int accountNumber;
+                cout << "Enter account number: ";
+                cin >> accountNumber;
+                bank.deleteAccount(accountNumber);
+                break;
+            }
+            case 7:
+                bank.displayAllAccounts();
+                break;
+            case 0:
+                cout << "Exiting..." << endl;
+                break;
+            default:
+                cout << "Invalid choice. Please try again." << endl;
+                break;
+        }
+
+        cout << endl;
+    } while (choice != 0);
+
+    return 0;
+}
